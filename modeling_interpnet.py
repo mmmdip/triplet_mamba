@@ -100,4 +100,4 @@ class InterpNet(TimeSeriesModel):
         sigma, lambda_ = self.sci(x, m, t, h, reconstruction=True)
         aux_output = self.cci(sigma, lambda_)  # bsz,T,V
         aux_loss = self.custom_loss(x, m, h, aux_output)
-        return main_loss + aux_loss
+        return main_loss + aux_loss, ts_demo_emb
