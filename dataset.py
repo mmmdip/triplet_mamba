@@ -22,10 +22,6 @@ class Dataset:
         val_ids = val_ids[start:start + num_val]
         args.logger.write('\nPreparing dataset ' + args.dataset)
         static_varis = self.get_static_varis(args.dataset)
-        if args.dataset == 'mimic_iii':
-            # Filter labeled data in first 24h and fill missing age for old patients.
-            data = data.loc[(data.minute >= 0) & (data.minute <= 24 * 60)]
-            data.loc[(data.variable == 'Age') & (data.value > 200), 'value'] = 91.4
 
         # keep variables seen in training set only
         train_variables = data.loc[data.ts_id.isin(train_ids)].variable.unique()
@@ -48,7 +44,7 @@ class Dataset:
         oc['ts_ind'] = oc['ts_id'].map(ts_id_to_ind)
         oc = oc.sort_values(by='ts_ind')
         # y = np.array(oc['in_hospital_mortality'])
-        y = np.array( oc['out_w_t']) if args.dataset == 'nemours' else np.array(oc['in_hospital_mortality'])
+        y = np.array( oc['out_w_m']) if args.dataset == 'nemours' else np.array(oc['in_hospital_mortality'])
         N = len(sup_ts_ids)
 
         # To save
