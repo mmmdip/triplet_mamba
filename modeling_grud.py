@@ -150,7 +150,7 @@ class GRUD_TS(TimeSeriesModel):
         # prediction
         logits = self.binary_head(ts_demo_emb)[:, 0]
         # prediction/loss
-        return self.binary_cls_final(logits, labels)
+        return self.binary_cls_final(logits, labels), ts_demo_emb
 
 
 if __name__ == '__main__':
