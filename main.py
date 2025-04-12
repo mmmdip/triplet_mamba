@@ -15,7 +15,7 @@ from modeling_grud import GRUD_TS
 from modeling_interpnet import InterpNet
 from modeling_sand import SAND
 from modeling_strats import Strats
-from modeling_simba import Trimba
+from modeling_trimba import Trimba
 from modeling_tcn import TCN_TS
 from models import count_parameters
 from utils import Logger, set_all_seeds
