@@ -15,11 +15,7 @@ class PretrainDataset(Dataset):
         data, _, train_ids, val_ids, test_ids = pickle.load(open(filepath, 'rb'))
         args.logger.write('\nPreparing dataset ' + args.dataset)
         static_varis = self.get_static_varis(args.dataset)
-        if args.dataset == 'mimic_iii':
-            data = data.loc[(data.minute >= 0) & (data.minute <= 5 * 24 * 60)]
-            data.loc[(data.variable == 'Age') & (data.value > 200), 'value'] = 91.4
-            self.max_minute = 24 * 60
-        elif args.dataset == 'physionet_2012':
+       if args.dataset == 'physionet_2012':
             self.max_minute = 48 * 60
 
         # remove test data, update train_ids for pretraining
@@ -101,14 +97,7 @@ class PretrainDataset(Dataset):
                     t1_ix = ix + 1  # start of prediction window
                     break
             t0_ix = max(0, t1_ix - self.max_obs)
-            if self.args.dataset == 'mimic_iii':  # obs window max length is 24 hrs
-                while curr_times[t0_ix] < t1 - self.max_minute:
-                    t0_ix += 1
-            if self.args.dataset == 'mimic_iii' and t1 > self.max_minute:  # shift times
-                diff = t1 - self.max_minute
-                input_times.append(list(np.array(self.times[i][t0_ix:t1_ix]) - diff))
-            else:
-                input_times.append(self.times[i][t0_ix:t1_ix])
+            input_times.append(self.times[i][t0_ix:t1_ix])
             input_values.append(self.values[i][t0_ix:t1_ix])
             input_varis.append(self.varis[i][t0_ix:t1_ix])
             t2 = t1 + 120  # prediction window is 2 hrs
