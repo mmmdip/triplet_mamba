@@ -204,6 +204,10 @@ if __name__ == "__main__":
                 if wait == 0:
                     args.logger.write('Patience reached')
                     break
+    embeddings = evaluator.get_embeddings( model, dataset, 'test' )
+    os.makedirs(args.output_dir, exist_ok=True)
+    outfile = os.path.join( args.output_dir, args.dataset, f'{args.model_type}_embeddings.pt' )
+    torch.save(embeddings, outfile )
 
     # print final res
     args.logger.write('Final val res: ' + str(best_val_res))
