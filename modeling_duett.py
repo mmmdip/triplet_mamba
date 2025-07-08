@@ -43,7 +43,7 @@ def fine_tune_model(ckpt_path, **kwargs):
     return Model.load_from_checkpoint(ckpt_path, pretrain=False, aug_noise=0., aug_mask=0.5, transformer_dropout=0.5,
             lr=1.e-4, weight_decay=1.e-5, fusion_method='rep_token', **kwargs)
 
-class Model(pl.LightningModule):
+class DueTT(pl.LightningModule):
     def __init__(self, d_static_num, d_time_series_num, d_target, lr=3.e-4, weight_decay=1.e-1, glu=False,
             scalenorm=True, n_hidden_mlp_embedding=1, d_hidden_mlp_embedding=64, d_embedding=24, d_feedforward=512,
             max_len=48, n_transformer_head=2, n_duett_layers=2, d_hidden_tab_encoder=128, n_hidden_tab_encoder=1,
