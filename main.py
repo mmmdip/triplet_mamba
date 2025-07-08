@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
     # load model
     model_class = {'strats': Strats, 'istrats': Strats, 'gru': GRU_TS, 'tcn': TCN_TS,
-                   'sand': SAND, 'grud': GRUD_TS, 'interpnet': InterpNet, 'ehrmamba': EHR_Mamba, 'duett': DuETT, 'triplet_mamba': Triplet_Mamba}
+                   'sand': SAND, 'grud': GRUD_TS, 'interpnet': InterpNet, 'ehrmamba': EHR_Mamba, 'duett': DuETT, 'tripletmamba': Triplet_Mamba}
     model = model_class[args.model_type](args)
     model.to(args.device)
     count_parameters(args.logger, model)
