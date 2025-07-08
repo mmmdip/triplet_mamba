@@ -20,7 +20,7 @@ from modeling_sand import SAND
 from modeling_strats import Strats
 from modeling_ehrmamba import EHR_Mamba
 from modeling_duett import DuETT
-from modeling_trimba import Trimba
+from modeling_tripletmamba import Triplet_Mamba
 from modeling_tcn import TCN_TS
 from models import count_parameters
 from utils import Logger, set_all_seeds
@@ -38,11 +38,11 @@ def parse_args() -> argparse.Namespace:
     # model related arguments
     parser.add_argument('--model_type', type=str, default='strats',
                         choices=['gru', 'tcn', 'sand', 'grud', 'interpnet',
-                                 'strats', 'istrats', 'ehrmamba', 'duett', 'trimba'])
+                                 'strats', 'istrats', 'ehrmamba', 'duett', 'tripletmamba'])
     parser.add_argument('--load_ckpt_path', type=str, default=None)
     ##  strats and istrats
     parser.add_argument('--max_obs', type=int, default=880)
-    # trimba related
+    # tripletmamba related
     parser.add_argument('--cm_type', type=str, default='EinFFT')
     parser.add_argument('--sr_ratio', type=int, default=8)
     parser.add_argument('--num_blocks', type=int, default=3)
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
     # load model
     model_class = {'strats': Strats, 'istrats': Strats, 'gru': GRU_TS, 'tcn': TCN_TS,
-                   'sand': SAND, 'grud': GRUD_TS, 'interpnet': InterpNet, 'ehrmamba': EHR_Mamba, 'duett': DuETT, 'trimba': Trimba}
+                   'sand': SAND, 'grud': GRUD_TS, 'interpnet': InterpNet, 'ehrmamba': EHR_Mamba, 'duett': DuETT, 'triplet_mamba': Triplet_Mamba}
     model = model_class[args.model_type](args)
     model.to(args.device)
     count_parameters(args.logger, model)
