@@ -143,7 +143,7 @@ ts['value'] = ts['value'].astype('float64')
 
 # Generate split.
 train_valid_ids = list(oc.ts_id)
-np.random.seed(123)
+np.random.seed(2196)
 np.random.shuffle(train_valid_ids)
 train_p = int(0.6 * len(train_valid_ids))
 val_p = int(0.8 * len(train_valid_ids))
