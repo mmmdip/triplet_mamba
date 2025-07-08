@@ -4,7 +4,10 @@ import os
 import numpy as np
 import torch
 from tqdm import tqdm
-from transformers.optimization import AdamW
+import pandas as pd
+# from transformers.optimization import AdamW
+# import transformers
+import matplotlib.pyplot as plt
 
 from dataset import Dataset
 from dataset_pretrain import PretrainDataset
@@ -15,6 +18,8 @@ from modeling_grud import GRUD_TS
 from modeling_interpnet import InterpNet
 from modeling_sand import SAND
 from modeling_strats import Strats
+from modeling_ehrmamba import EHR_Mamba
+from modeling_duett import DuETT
 from modeling_trimba import Trimba
 from modeling_tcn import TCN_TS
 from models import count_parameters
@@ -33,14 +38,15 @@ def parse_args() -> argparse.Namespace:
     # model related arguments
     parser.add_argument('--model_type', type=str, default='strats',
                         choices=['gru', 'tcn', 'sand', 'grud', 'interpnet',
-                                 'strats', 'istrats', 'trimba'])
+                                 'strats', 'istrats', 'ehrmamba', 'duett', 'trimba'])
     parser.add_argument('--load_ckpt_path', type=str, default=None)
     ##  strats and istrats
     parser.add_argument('--max_obs', type=int, default=880)
     # trimba related
     parser.add_argument('--cm_type', type=str, default='EinFFT')
     parser.add_argument('--sr_ratio', type=int, default=8)
-    parser.add_argument('--mlp_ratio', type=int, default=8)
+    parser.add_argument('--num_blocks', type=int, default=3)
+    parser.add_argument('--mlp_ratio', type=int, default=1)
     # parser.add_argument('--max_obs', type=int, default=8654)
     parser.add_argument('--hid_dim', type=int, default=32)
     parser.add_argument('--num_layers', type=int, default=2)
@@ -84,17 +90,17 @@ def set_output_dir(args: argparse.Namespace) -> None:
     if it is not passed in args."""
     if args.output_dir is None:
         if args.pretrain:
-            args.output_dir = '../outputs/' + args.dataset + '/' + args.output_dir_prefix + 'pretrain/'
+            args.output_dir = './outputs/' + args.dataset + '/' + args.output_dir_prefix + 'pretrain/'
         else:
             if args.load_ckpt_path is not None:
                 args.output_dir_prefix = 'finetune_' + args.output_dir_prefix
-            args.output_dir = '../outputs/' + args.dataset + '/' + args.output_dir_prefix
+            args.output_dir = './outputs/' + args.dataset + '/' + args.output_dir_prefix
             args.output_dir += args.model_type
             if args.model_type == 'strats':
                 for param in ['num_layers', 'hid_dim', 'num_heads', 'dropout', 'attention_dropout', 'lr']:
                     args.output_dir += ',' + param + ':' + str(getattr(args, param))
-            for param in ['train_frac', 'run']:
-                args.output_dir += '|' + param + ':' + str(getattr(args, param))
+            # for param in ['train_frac', 'run']:
+            #     args.output_dir += '|' + param + ':' + str(getattr(args, param))
     os.makedirs(args.output_dir, exist_ok=True)
     # os.makedirs("./outputs/run", exist_ok=True)
 
@@ -114,7 +120,7 @@ if __name__ == "__main__":
 
     # load model
     model_class = {'strats': Strats, 'istrats': Strats, 'gru': GRU_TS, 'tcn': TCN_TS,
-                   'sand': SAND, 'grud': GRUD_TS, 'interpnet': InterpNet, 'trimba': Trimba}
+                   'sand': SAND, 'grud': GRUD_TS, 'interpnet': InterpNet, 'ehrmamba': EHR_Mamba, 'duett': DuETT, 'trimba': Trimba}
     model = model_class[args.model_type](args)
     model.to(args.device)
     count_parameters(args.logger, model)
@@ -138,9 +144,11 @@ if __name__ == "__main__":
     wait, patience_reached = args.patience, False
     best_val_metric = -np.inf
     best_val_res, best_test_res = None, None
-    optimizer = AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
+    optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
     train_bar = tqdm(range(args.max_steps))
     evaluator = PretrainEvaluator(args) if args.pretrain==1 else Evaluator(args)
+    model_loss = []
+    model_perf = []
 
     # results before any training
     if args.validate_after < 0:
@@ -185,8 +193,11 @@ if __name__ == "__main__":
             if not (args.pretrain):
                 evaluator.evaluate(model, dataset, 'eval_train', train_step=step)
                 test_res = evaluator.evaluate(model, dataset, 'test', train_step=step)
+                model_loss.append( test_res['train_loss'] )
+                model_perf.append( test_res['auroc'] )
             else:
                 test_res = None
+                model_loss.append( -1 * val_res['loss_neg'] )
             model.train(True)
 
             # Save ckpt if there is an improvement.
@@ -204,11 +215,22 @@ if __name__ == "__main__":
                 if wait == 0:
                     args.logger.write('Patience reached')
                     break
-    embeddings = evaluator.get_embeddings( model, dataset, 'test' )
-    os.makedirs(args.output_dir, exist_ok=True)
-    outfile = os.path.join( args.output_dir, args.dataset, f'{args.model_type}_embeddings.pt' )
-    torch.save(embeddings, outfile )
+    if not args.pretrain:
+        embeddings = evaluator.get_embeddings( model, dataset, 'test' )
+        os.makedirs(args.output_dir, exist_ok=True)
+        outfile = os.path.join( args.output_dir, f'embeddings.pt' )
+        torch.save(embeddings, outfile )
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+        ax1.plot( model_perf )
+        ax2.plot( model_loss )
+        plt.tight_layout()
+        plt.show()
+    else:
+        plt.figure()
+        plt.plot( model_loss )
+        plt.show()
 
     # print final res
     args.logger.write('Final val res: ' + str(best_val_res))
-    args.logger.write('Final test res: ' + str(best_test_res))
+    if best_test_res:
+        args.logger.write('Final test res: ' + str(best_test_res))
