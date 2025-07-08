@@ -32,6 +32,8 @@ class TimeSeriesModel(nn.Module):
     def __init__(self, args: argparse.Namespace):
         super().__init__()
         self.args = args
+        self.global_var_att_map = {}
+        self.local_var_att_map = []
         if args.model_type != 'istrats':
             self.demo_emb = nn.Sequential(nn.Linear(args.D, args.hid_dim * 2),
                                           nn.Tanh(),
