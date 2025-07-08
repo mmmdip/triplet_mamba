@@ -11,13 +11,16 @@ from utils import CycleIndex
 class PretrainDataset(Dataset):
     def __init__(self, args):
         # read data
-        filepath = '../data/processed/' + args.dataset + '.pkl'
+        filepath = './data/processed/' + args.dataset + '.pkl'
         data, _, train_ids, val_ids, test_ids = pickle.load(open(filepath, 'rb'))
         args.logger.write('\nPreparing dataset ' + args.dataset)
         static_varis = self.get_static_varis(args.dataset)
-       if args.dataset == 'physionet_2012':
+        if args.dataset == 'physionet_2012':
             self.max_minute = 48 * 60
-
+            self.pred_window = 120
+        elif args.dataset == 'nemours':
+            self.max_minute = data.minute.max()
+            self.pred_window = 180
         # remove test data, update train_ids for pretraining
         data = data.loc[~data.ts_id.isin(test_ids)]
         train_ids = np.setdiff1d(data.ts_id.unique(), val_ids)
@@ -41,6 +44,10 @@ class PretrainDataset(Dataset):
         self.static_varis = static_varis
         self.splits = {'train': [ts_id_to_ind[i] for i in train_ids],
                        'val': [ts_id_to_ind[i] for i in val_ids]}
+
+        variables = data.variable.unique()
+        var_to_ind = {v: i for i, v in enumerate(variables)}
+        self.var_ind = var_to_ind
 
         # Get static data with missingness indicator.
         data = self.get_static_data(data)
@@ -100,7 +107,8 @@ class PretrainDataset(Dataset):
             input_times.append(self.times[i][t0_ix:t1_ix])
             input_values.append(self.values[i][t0_ix:t1_ix])
             input_varis.append(self.varis[i][t0_ix:t1_ix])
-            t2 = t1 + 120  # prediction window is 2 hrs
+            # t2 = t1 + 120  # prediction window is 2 hrs
+            t2 = t1 + self.pred_window
             for t2_ix in range(t1_ix, len(curr_times)):
                 if curr_times[t2_ix] > t2:
                     break
