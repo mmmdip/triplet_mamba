@@ -11,7 +11,7 @@ from utils import CycleIndex
 class Dataset:
     def __init__(self, args) -> None:
         # read data
-        filepath = '../data/processed/' + args.dataset + '.pkl'
+        filepath = './data/processed/' + args.dataset + '.pkl'
         data, oc, train_ids, val_ids, test_ids = pickle.load(open(filepath, 'rb'))
         run, totalruns = list(map(int, args.run.split('o')))
         num_train = int(np.ceil(args.train_frac * len(train_ids)))
@@ -22,6 +22,10 @@ class Dataset:
         val_ids = val_ids[start:start + num_val]
         args.logger.write('\nPreparing dataset ' + args.dataset)
         static_varis = self.get_static_varis(args.dataset)
+        if args.dataset=='mimic_iv':
+            # Filter labeled data in first 24h and fill missing age for old patients.
+            data = data.loc[(data.minute>=0)&(data.minute<=24*60)]
+            data.loc[(data.variable=='Age')&(data.value>200), 'value'] = 91.4
 
         # keep variables seen in training set only
         train_variables = data.loc[data.ts_id.isin(train_ids)].variable.unique()
@@ -65,15 +69,15 @@ class Dataset:
                                  y[self.splits['val']].sum() / len(val_ids),
                                  y[self.splits['test']].sum() / len(test_ids)]))
 
-        if 'llm' in args.model_type:
-            self.data = data
-            return
-
+        variables = data.variable.unique()
+        var_to_ind = {v: i for i, v in enumerate(variables)}
+        self.var_ind = var_to_ind
+        
         # Get static data with missingness indicator.
         data = self.get_static_data(data)
 
         # Trim to max len.
-        if args.model_type in ['strats', 'istrats', 'trimba']:
+        if args.model_type in ['strats', 'istrats', 'ehrmamba', 'duett', 'trimba']:
             data = data.sample(frac=1)
             data = data.groupby('ts_id').head(args.max_obs)
         elif args.model_type in ['grud', 'interpnet']:
@@ -87,7 +91,7 @@ class Dataset:
             pt_var_path = os.path.join(os.path.dirname(args.load_ckpt_path),
                                        'pt_saved_variables.pkl')
             variables, means_stds, max_minute = pickle.load(open(pt_var_path, 'rb'))
-        if args.model_type in ['strats', 'istrats', 'trimba', 'grud', 'interpnet']:
+        if args.model_type in ['strats', 'istrats', 'ehrmamba', 'duett', 'trimba', 'grud', 'interpnet']:
             if not (args.finetune):
                 means_stds = data.loc[data.ts_id.isin(train_ids)].groupby(
                     'variable').agg({'value': ['mean', 'std']})
@@ -134,7 +138,7 @@ class Dataset:
             stds = (stds == 0) * 1 + (stds > 0) * stds
             values = (values - means) / stds
             self.X = np.concatenate((values, obs, delta), axis=-1)
-        elif args.model_type in ['strats', 'istrats', 'trimba']:
+        elif args.model_type in ['strats', 'istrats', 'ehrmamba', 'duett', 'trimba']:
             values = [[] for i in range(N)]
             times = [[] for i in range(N)]
             varis = [[] for i in range(N)]
@@ -189,7 +193,7 @@ class Dataset:
                 self.holdout_masks = holdout_masks
 
     def get_static_varis(self, dataset):
-        if dataset == 'mimic_iii':
+        if dataset == 'mimic_iv':
             static_varis = ['Age', 'Gender']
         elif dataset == 'physionet_2012':
             static_varis = ['Age', 'Gender', 'Height', 'ICUType_1',
@@ -242,8 +246,8 @@ class Dataset:
     def get_batch(self, ind=None):
         if ind is None:
             ind = self.train_cycler.get_batch_ind()
-        if self.args.model_type in ['strats', 'istrats', 'trimba']:
-            return self.get_batch_strats(ind)
+        if self.args.model_type in ['strats', 'istrats', 'ehrmamba', 'duett', 'trimba']:
+            return self.get_batch_st(ind)
         elif self.args.model_type == 'grud':
             return self.get_batch_grud(ind)
         elif self.args.model_type == 'interpnet':
@@ -295,7 +299,7 @@ class Dataset:
                 'demo': torch.FloatTensor(self.demo[ind]),
                 'labels': torch.FloatTensor(self.y[ind])}
 
-    def get_batch_strats(self, ind):
+    def get_batch_st(self, ind):
         demo = torch.FloatTensor(self.demo[ind])  # N,D
         num_obs = [len(self.values[i]) for i in ind]
         max_obs = max(num_obs)
