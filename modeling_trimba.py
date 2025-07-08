@@ -328,7 +328,7 @@ class Block_mamba(nn.Module):
         return x
 
 
-class Trimba(TimeSeriesModel):
+class Triplet_Mamba(TimeSeriesModel):
     def __init__(self, args: Namespace):
         super().__init__(args)
         self.cve_time = CVE(args)
