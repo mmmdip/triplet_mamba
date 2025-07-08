@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-RAW_DATA_PATH = '/home/datasets/mimiciii1.4'
+RAW_DATA_PATH = '/home/datasets/mimiciv'
 
 # Get all ICU stays.
 icu = pd.read_csv(os.path.join(RAW_DATA_PATH, 'ICUSTAYS.csv'),
