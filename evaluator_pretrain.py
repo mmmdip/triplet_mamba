@@ -1,7 +1,6 @@
 import torch
 from tqdm import tqdm
 
-
 class PretrainEvaluator:
     def __init__(self, args):
         self.args = args
